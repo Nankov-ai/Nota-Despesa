@@ -895,6 +895,10 @@
         }
 
         /* ─── PARTILHAR / EMAIL ─── */
+        function isMobile() {
+            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+        }
+
         async function sendToEmail() {
             if (!validateForm()) return;
 
@@ -903,61 +907,61 @@
             btn.innerHTML = '<span>A processar...</span>';
             btn.disabled = true;
 
+            const nomeVal = document.getElementById('nome').value;
+            const numeroVal = document.getElementById('numero').value;
+
             try {
-                const { docId, nome, numero } = preparePDFData();
+                const { docId } = preparePDFData();
                 const element = document.getElementById('pdf-template');
-                const opt = {
+                const pdfOpt = {
                     margin: 0,
                     html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
+                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nomeVal} - ${numeroVal}`)}&body=${encodeURIComponent(`Olá,\n\nSegue em anexo a Nota de Despesa e respetivos comprovativos.\n\nColaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
 
-                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-                const filesArray = [
-                    new File([pdfBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })
-                ];
-
-                // Adicionar todos os comprovativos anexados
-                Object.entries(expensePhotos).forEach(([id, photo]) => {
-                    if (!photo.data) return;
-                    if (photo.type === 'image') {
-                        filesArray.push(base64ToFile(photo.data, `Comprovativo_${id}.jpg`, 'image/jpeg'));
-                    } else if (photo.type === 'pdf') {
-                        filesArray.push(base64ToFile(photo.data, photo.name || `Comprovativo_${id}.pdf`, 'application/pdf'));
+                if (isMobile() && navigator.canShare) {
+                    // MOBILE: Share API com todos os ficheiros
+                    const pdfBlob = await html2pdf().set(pdfOpt).from(element).output('blob');
+                    const filesArray = [new File([pdfBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })];
+                    Object.entries(expensePhotos).forEach(([id, photo]) => {
+                        if (!photo.data) return;
+                        if (photo.type === 'image') filesArray.push(base64ToFile(photo.data, `Comprovativo_${id}.jpg`, 'image/jpeg'));
+                        else if (photo.type === 'pdf') filesArray.push(base64ToFile(photo.data, photo.name || `Comprovativo_${id}.pdf`, 'application/pdf'));
+                    });
+                    if (navigator.canShare({ files: filesArray })) {
+                        await navigator.share({ files: filesArray, title: `Nota de Despesa - ${nomeVal}`, text: `Nota de ${nomeVal} (${numeroVal}) — Ref: ${docId}` });
+                        showToast('Partilhado com sucesso!', 'success');
+                    } else {
+                        throw new Error('canShare false');
                     }
-                });
-
-                const shareSubject = `Nota de Despesa - ${nome} - ${numero}`;
-                const shareText = `Olá,\n\nSegue em anexo a minha nota de despesa e respetivos comprovativos.\n\nColaborador: ${nome}\nNº: ${numero}\nRef: ${docId}`;
-
-                if (navigator.canShare && navigator.canShare({ files: filesArray })) {
-                    await navigator.share({ files: filesArray, title: shareSubject, text: shareText });
-                    showToast('Menu de partilha aberto!', 'success');
                 } else {
-                    throw new Error('Share API not supported for files');
+                    // DESKTOP: descarregar nota + comprovativos + abrir Gmail diretamente
+                    showToast('A preparar ficheiros...', 'info');
+                    const dlOpt = { ...pdfOpt, filename: `Nota_Despesa_${docId}.pdf`, image: { type: 'jpeg', quality: 0.95 } };
+                    await html2pdf().set(dlOpt).from(element).save();
+
+                    for (const [id, photo] of Object.entries(expensePhotos)) {
+                        if (!photo.data) continue;
+                        await new Promise(r => setTimeout(r, 400));
+                        const mimeType = photo.type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+                        const filename = photo.type === 'pdf' ? (photo.name || `Comprovativo_${id}.pdf`) : `Comprovativo_${id}.jpg`;
+                        const f = base64ToFile(photo.data, filename, mimeType);
+                        const url = URL.createObjectURL(f);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = filename; a.click();
+                        URL.revokeObjectURL(url);
+                    }
+
+                    await new Promise(r => setTimeout(r, 600));
+                    window.open(gmailUrl, '_blank');
+                    showToast('Gmail aberto — anexe os ficheiros descarregados.', 'success');
                 }
+
+                saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
+
             } catch(err) {
-                // Fallback desktop: descarregar PDF + todos os comprovativos + abrir Gmail
-                showToast('A descarregar ficheiros. Anexe-os no Gmail.', 'info');
-                await generatePDF();
-
-                // Descarregar cada comprovativo individualmente
-                for (const [id, photo] of Object.entries(expensePhotos)) {
-                    if (!photo.data) continue;
-                    await new Promise(resolve => setTimeout(resolve, 400));
-                    const mimeType = photo.type === 'pdf' ? 'application/pdf' : 'image/jpeg';
-                    const filename = photo.type === 'pdf' ? (photo.name || `Comprovativo_${id}.pdf`) : `Comprovativo_${id}.jpg`;
-                    const file = base64ToFile(photo.data, filename, mimeType);
-                    const url = URL.createObjectURL(file);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = filename; a.click();
-                    URL.revokeObjectURL(url);
-                }
-
-                const nome2 = document.getElementById('nome').value;
-                const numero2 = document.getElementById('numero').value;
-                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nome2} - ${numero2}`)}&body=${encodeURIComponent('Segue em anexo a nota de despesa e comprovativos descarregados.')}`;
-                window.open(gmailUrl, '_blank');
+                showToast('Erro ao partilhar. Tente descarregar o PDF.', 'error');
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
