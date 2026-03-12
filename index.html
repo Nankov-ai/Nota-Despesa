@@ -814,6 +814,38 @@
         }
 
         /* ─── GERAR PDF ─── */
+        async function createFinalPDFBlob(element) {
+            const opt = {
+                margin: 0,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const notaBlob = await html2pdf().set(opt).from(element).output('blob');
+            const pdfComprovativos = Object.values(expensePhotos).filter(p => p.type === 'pdf' && p.data);
+
+            if (pdfComprovativos.length > 0 && typeof PDFLib !== 'undefined') {
+                const notaArrayBuffer = await notaBlob.arrayBuffer();
+                const mergedDoc = await PDFLib.PDFDocument.load(notaArrayBuffer);
+
+                for (const comprov of pdfComprovativos) {
+                    try {
+                        const base64Data = comprov.data.split(',')[1];
+                        const comprovBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                        const comprovDoc = await PDFLib.PDFDocument.load(comprovBytes);
+                        const pageIndices = comprovDoc.getPageIndices();
+                        const copiedPages = await mergedDoc.copyPages(comprovDoc, pageIndices);
+                        copiedPages.forEach(page => mergedDoc.addPage(page));
+                    } catch(e) { }
+                }
+
+                const finalBytes = await mergedDoc.save();
+                return new Blob([finalBytes], { type: 'application/pdf' });
+            }
+            return notaBlob;
+        }
+
         async function generatePDF() {
             if (!validateForm()) return;
 
@@ -825,55 +857,15 @@
             try {
                 const { docId, nome, numero, centroColaborador, total } = preparePDFData();
                 const element = document.getElementById('pdf-template');
-                const opt = {
-                    margin: 0,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
                 showToast('A gerar documento...', 'info');
 
-                // 1. Gerar a nota de despesa como blob
-                const notaBlob = await html2pdf().set(opt).from(element).output('blob');
-
-                // 2. Verificar se há PDFs comprovativo para fundir
-                const pdfComprovativos = Object.values(expensePhotos).filter(p => p.type === 'pdf' && p.data);
-
-                let finalBytes;
-                if (pdfComprovativos.length > 0 && typeof PDFLib !== 'undefined') {
-                    // Fundir com pdf-lib
-                    const notaArrayBuffer = await notaBlob.arrayBuffer();
-                    const mergedDoc = await PDFLib.PDFDocument.load(notaArrayBuffer);
-
-                    for (const comprov of pdfComprovativos) {
-                        try {
-                            const base64Data = comprov.data.split(',')[1];
-                            const comprovBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-                            const comprovDoc = await PDFLib.PDFDocument.load(comprovBytes);
-                            const pageIndices = comprovDoc.getPageIndices();
-                            const copiedPages = await mergedDoc.copyPages(comprovDoc, pageIndices);
-                            copiedPages.forEach(page => mergedDoc.addPage(page));
-                        } catch(e) { /* ignorar PDF inválido */ }
-                    }
-
-                    finalBytes = await mergedDoc.save();
-                    const finalBlob = new Blob([finalBytes], { type: 'application/pdf' });
-                    const url = URL.createObjectURL(finalBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Nota_Despesa_${docId}.pdf`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                } else {
-                    // Sem PDFs — descarregar diretamente
-                    const url = URL.createObjectURL(notaBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Nota_Despesa_${docId}.pdf`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                }
+                const finalBlob = await createFinalPDFBlob(element);
+                const url = URL.createObjectURL(finalBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Nota_Despesa_${docId}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
 
                 saveToHistory(docId, nome, numero, centroColaborador, total);
                 showToast('PDF descarregado com sucesso!', 'success');
@@ -950,26 +942,19 @@
             try {
                 const { docId } = preparePDFData();
                 const element = document.getElementById('pdf-template');
-                const pdfOpt = {
-                    margin: 0,
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
                 const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nomeVal} - ${numeroVal}`)}&body=${encodeURIComponent(`Olá,
 
 Segue em anexo a Nota de Despesa e respetivos comprovativos.
 
 Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
 
+                showToast('A preparar anexo unificado...', 'info');
+                const finalBlob = await createFinalPDFBlob(element);
+
                 if (isMobile() && navigator.canShare) {
-                    // MOBILE: Share API com todos os ficheiros
-                    const pdfBlob = await html2pdf().set(pdfOpt).from(element).output('blob');
-                    const filesArray = [new File([pdfBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })];
-                    Object.entries(expensePhotos).forEach(([id, photo]) => {
-                        if (!photo.data) return;
-                        if (photo.type === 'image') filesArray.push(base64ToFile(photo.data, `Comprovativo_${id}.jpg`, 'image/jpeg'));
-                        else if (photo.type === 'pdf') filesArray.push(base64ToFile(photo.data, photo.name || `Comprovativo_${id}.pdf`, 'application/pdf'));
-                    });
+                    // MOBILE: Share API partilha apenas o PDF final único
+                    const filesArray = [new File([finalBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })];
+                    
                     if (navigator.canShare({ files: filesArray })) {
                         await navigator.share({ files: filesArray, title: `Nota de Despesa - ${nomeVal}`, text: `Nota de ${nomeVal} (${numeroVal}) — Ref: ${docId}` });
                         showToast('Partilhado com sucesso!', 'success');
@@ -977,22 +962,11 @@ Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
                         throw new Error('canShare false');
                     }
                 } else {
-                    // DESKTOP: descarregar nota + comprovativos + abrir Gmail diretamente
-                    showToast('A preparar ficheiros...', 'info');
-                    const dlOpt = { ...pdfOpt, filename: `Nota_Despesa_${docId}.pdf`, image: { type: 'jpeg', quality: 0.95 } };
-                    await html2pdf().set(dlOpt).from(element).save();
-
-                    for (const [id, photo] of Object.entries(expensePhotos)) {
-                        if (!photo.data) continue;
-                        await new Promise(r => setTimeout(r, 400));
-                        const mimeType = photo.type === 'pdf' ? 'application/pdf' : 'image/jpeg';
-                        const filename = photo.type === 'pdf' ? (photo.name || `Comprovativo_${id}.pdf`) : `Comprovativo_${id}.jpg`;
-                        const f = base64ToFile(photo.data, filename, mimeType);
-                        const url = URL.createObjectURL(f);
-                        const a = document.createElement('a');
-                        a.href = url; a.download = filename; a.click();
-                        URL.revokeObjectURL(url);
-                    }
+                    // DESKTOP: Descarrega apenas o PDF final único e converte botão
+                    const url = URL.createObjectURL(finalBlob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `Nota_Despesa_${docId}.pdf`; a.click();
+                    URL.revokeObjectURL(url);
 
                     await new Promise(r => setTimeout(r, 600));
                     
