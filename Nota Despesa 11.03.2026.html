@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Notas de Despesa - Norauto</title>
+    <!-- Frameworks e Fontes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print { .no-print { display: none; } }
+        
+        /* Estilo do Template PDF A4 Estrito */
+        #pdf-template {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 0 auto;
+            background: white;
+            color: black;
+            box-sizing: border-box;
+            position: relative;
+            font-family: 'Inter', Arial, sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .centers-dropdown {
+            display: none;
+            position: absolute;
+            z-index: 50;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .centers-dropdown.active { display: block; }
+        
+        .toast-enter { transform: translateY(-100%); opacity: 0; }
+        .toast-active { transform: translateY(0); opacity: 1; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        .logo-container img { max-width: 180px; height: auto; }
+
+        .photo-preview {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #3b82f6;
+        }
+
+        /* Container do PDF posicionado fora do ecrã mas ativo */
+        #pdf-container {
+            position: absolute;
+            top: -10000px;
+            left: 0;
+            width: 210mm;
+            background: white;
+        }
+
+        input:focus, select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <!-- Sistema de Feedback (Toasts) -->
+    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] pointer-events-none w-full max-w-xs sm:max-w-md px-4">
+        <div id="toast" class="toast-enter hidden bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+            <span id="toast-icon" class="text-xl"></span>
+            <span id="toast-message" class="text-sm font-bold"></span>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto py-6 md:py-10 px-4 md:px-6 no-print">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
+                <div class="logo-container">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Logo_actuel_de_Norauto.png" alt="Logótipo Norauto" onerror="this.src='https://placehold.co/180x50?text=NORAUTO'">
+                </div>
+                <div class="h-10 w-px bg-slate-200 hidden md:block"></div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight uppercase">Nota de <span class="text-blue-600">Despesa</span></h1>
+                    <p class="text-slate-500 text-sm">Controlo de Reembolsos Internos</p>
+                </div>
+            </div>
+            <div class="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider self-start md:self-auto shadow-sm">
+                Colaborador Norauto
+            </div>
+        </header>
+
+        <form id="expense-form" class="space-y-6 md:space-y-8" onsubmit="return false;">
+            <!-- Secção 1: Identificação -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <span class="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 text-[10px]">1</span>
+                    Dados do Requerente
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Nome Completo</label>
+                        <input type="text" id="nome" required placeholder="Ex: João Silva" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">E-mail Corporativo</label>
+                        <input type="email" id="email" required placeholder="exemplo@norauto.pt" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Data de Preenchimento</label>
+                        <input type="date" id="data-preenchimento" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Nº Colaborador</label>
+                        <input type="text" id="numero" required placeholder="Ex: 12345" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Centro de Custo (Origem)</label>
+                        <select id="centro-colaborador" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all cursor-pointer">
+                            <option value="">Selecione o seu Centro...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Tipo de Viatura</label>
+                        <select id="viatura-tipo" onchange="toggleMatricula()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all cursor-pointer">
+                            <option value="nenhuma">Nenhuma / Transporte Público</option>
+                            <option value="propria">Viatura Própria</option>
+                            <option value="aluguer">Viatura de Aluguer</option>
+                        </select>
+                    </div>
+                    <div id="matricula-group" class="hidden">
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Matrícula</label>
+                        <input type="text" id="matricula" placeholder="00-AA-00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all uppercase font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secção 2: Despesas -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 text-[10px]">2</span>
+                        Detalhamento de Despesas
+                    </h2>
+                    <button type="button" onclick="addExpenseRow()" class="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors shadow-sm">
+                        + Nova Despesa
+                    </button>
+                </div>
+
+                <div id="expense-list" class="space-y-4">
+                    <!-- Linhas injetadas via JS -->
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <span class="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Total a Reembolsar</span>
+                    <span id="total-display" class="text-4xl font-black text-slate-900">0.00 €</span>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="flex flex-col sm:flex-row gap-4 no-print pb-10">
+                <button type="button" onclick="generatePDF()" id="btn-pdf" class="flex-1 bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-3 shadow-xl">
+                    <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Descarregar PDF
+                </button>
+                <button type="button" onclick="sendToEmail()" id="btn-email" class="flex-1 bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Partilhar no Gmail
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- TEMPLATE DO PDF (Isolado e Oculto) -->
+    <div id="pdf-container">
+        <div id="pdf-template">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px;">
+                <div>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Logo_actuel_de_Norauto.png" style="width: 180px; height: auto; margin-bottom: 10px;">
+                    <h1 style="font-size: 20pt; font-weight: 800; margin: 0; color: #000; text-transform: uppercase;">Relatório de Notas de Despesa</h1>
+                </div>
+                <div style="text-align: right; color: #64748b; font-size: 10pt;">
+                    <strong>Emissão:</strong> <span id="pdf-data-preenchimento-val"></span><br>
+                    <strong>Nº Doc:</strong> <span id="pdf-doc-id"></span>
+                </div>
+            </div>
+
+            <table style="width: 100%; margin-bottom: 30px; border-collapse: collapse; font-size: 11pt;">
+                <tr>
+                    <td style="padding: 10px 0; width: 60%; border-bottom: 1px solid #f1f5f9;"><strong>Colaborador:</strong> <span id="pdf-nome"></span></td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;"><strong>Nº Emp.:</strong> <span id="pdf-numero"></span></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;"><strong>Centro Origem:</strong> <span id="pdf-centro-colaborador"></span></td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;"><strong>Viatura:</strong> <span id="pdf-viatura"></span></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;"><strong>Email:</strong> <span id="pdf-email"></span></td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;"></td>
+                </tr>
+            </table>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background: #000; color: #fff;">
+                        <th style="padding: 12px; text-align: left; font-size: 9pt; text-transform: uppercase;">Data</th>
+                        <th style="padding: 12px; text-align: left; font-size: 9pt; text-transform: uppercase;">Tipo / Descrição</th>
+                        <th style="padding: 12px; text-align: left; font-size: 9pt; text-transform: uppercase;">Centros Partilha</th>
+                        <th style="padding: 12px; text-align: right; font-size: 9pt; text-transform: uppercase;">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-table-body">
+                </tbody>
+            </table>
+
+            <div style="text-align: right; margin-bottom: 40px;">
+                <p style="font-size: 16pt; font-weight: 800; border-bottom: 3px double #000; padding: 10px 0; display: inline-block;">TOTAL A LIQUIDAR: <span id="pdf-total"></span></p>
+            </div>
+
+            <div id="pdf-attachments-section" style="margin-top: 40px; page-break-before: always;">
+                <h3 style="font-size: 14pt; font-weight: 800; margin-bottom: 25px; border-bottom: 1px solid #000; padding-bottom: 5px;">COMPROVATIVOS ANEXOS</h3>
+                <div id="pdf-attachments-grid" style="display: flex; flex-wrap: wrap; gap: 20px;"></div>
+            </div>
+
+            <div style="margin-top: 50px; display: flex; justify-content: space-between; gap: 40px; page-break-inside: avoid;">
+                <div style="flex: 1; border-top: 1px solid #000; text-align: center; padding-top: 8px;">
+                    <small style="font-weight: 800; text-transform: uppercase; font-size: 8pt;">Assinatura Requerente</small>
+                </div>
+                <div style="flex: 1; border-top: 1px solid #000; text-align: center; padding-top: 8px;">
+                    <small style="font-weight: 800; text-transform: uppercase; font-size: 8pt;">Aprovação Gestão</small>
+                </div>
+            </div>
+            
+            <div style="position: absolute; bottom: 10mm; left: 20mm; width: 170mm; font-size: 7pt; color: #94a3b8; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+                Documento Norauto Portugal - Processamento de Despesas. Gerado em <span id="pdf-gerado-em"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rowCount = 0;
+        const expensePhotos = {}; 
+        
+        const centrosDisponiveis = [
+            "600 - Sede", "601 - V. N. Gaia", "602 - Alfragide", "603 - Montijo", 
+            "604 - Rio Tinto", "605 - Aveiro", "606 - Almada", "607 - Coimbra", 
+            "608 - Braga", "609 - T. Novas", "610 - Setúbal", "611 - Sintra", 
+            "612 - Maia", "613 - Matosinhos", "614 - Guia", "615 - Barreiro", 
+            "616 - Guimarães", "617 - Odivelas", "618 - Cascais", "619 - T. Vedras", 
+            "620 - Portimão", "621 - Leiria", "624 - Alverca", "625 - Amadora", 
+            "626 - Sacavém", "627 - Évora", "629 - Viana do Castelo", "630 - Faro", 
+            "631 - Carcavelos", "632 - Figueira da Foz", "633 - Porto Ramalde"
+        ];
+
+        window.onload = () => {
+            const now = new Date();
+            document.getElementById('data-preenchimento').value = now.toISOString().split('T')[0];
+            document.getElementById('pdf-doc-id').innerText = `ND-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+            
+            const selectColaborador = document.getElementById('centro-colaborador');
+            centrosDisponiveis.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                selectColaborador.appendChild(opt);
+            });
+
+            addExpenseRow();
+            
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.center-selector-container')) {
+                    document.querySelectorAll('.centers-dropdown').forEach(d => d.classList.remove('active'));
+                }
+            });
+        };
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            toastMsg.innerText = message;
+            
+            toast.className = `toast-enter fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-white transition-all duration-300`;
+            
+            if(type === 'error') { toast.classList.add('bg-red-600'); toastIcon.innerHTML = '⚠️'; }
+            else if(type === 'success') { toast.classList.add('bg-green-600'); toastIcon.innerHTML = '✅'; }
+            else { toast.classList.add('bg-slate-900'); toastIcon.innerHTML = 'ℹ️'; }
+
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.remove('toast-enter'); toast.classList.add('toast-active'); }, 10);
+            setTimeout(() => { 
+                toast.classList.remove('toast-active'); 
+                toast.classList.add('toast-enter'); 
+                setTimeout(() => toast.classList.add('hidden'), 300); 
+            }, 4000);
+        }
+
+        function toggleMatricula() {
+            const tipo = document.getElementById('viatura-tipo').value;
+            const group = document.getElementById('matricula-group');
+            if (tipo === 'propria') { group.classList.remove('hidden'); }
+            else { group.classList.add('hidden'); document.getElementById('matricula').value = ''; }
+        }
+
+        function formatDateBR(dateString) {
+            if (!dateString) return '---';
+            const [year, month, day] = dateString.split('-');
+            return `${day} / ${month} / ${year}`;
+        }
+
+        function handlePhotoCapture(id, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast("A foto é muito grande. Tente uma foto com menos de 2MB.", "error");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                expensePhotos[id] = base64Image;
+                const preview = document.getElementById(`photo-preview-${id}`);
+                preview.src = base64Image;
+                preview.classList.remove('hidden');
+                showToast("Talão anexado!", "success");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function addExpenseRow() {
+            rowCount++;
+            const list = document.getElementById('expense-list');
+            const rowId = rowCount;
+            const row = document.createElement('div');
+            row.className = "bg-slate-50 p-5 rounded-2xl border border-slate-200 transition-all hover:bg-white hover:border-blue-300 shadow-sm";
+            row.id = `row-${rowId}`;
+            
+            const centrosHtml = centrosDisponiveis.map(c => `
+                <label class="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer text-sm rounded-lg transition-colors">
+                    <input type="checkbox" value="${c}" onchange="updateRowCenters(${rowId})" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+                    <span class="font-medium">${c}</span>
+                </label>
+            `).join('');
+
+            row.innerHTML = `
+                <div class="grid grid-cols-12 gap-4 items-end">
+                    <div class="col-span-6 md:col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Gasto</label>
+                        <input type="date" class="expense-data w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none">
+                    </div>
+                    <div class="col-span-6 md:col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo</label>
+                        <select class="expense-tipo w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none cursor-pointer">
+                            <option>Portagens</option><option>Refeição</option><option>Combustível</option><option>Alojamento</option><option>Transporte</option><option>Km Próprios</option><option>Outros</option>
+                        </select>
+                    </div>
+                    <div class="col-span-12 md:col-span-3">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Descrição</label>
+                        <input type="text" class="expense-desc w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none" placeholder="Ex: Viagem Reunião Sede">
+                    </div>
+                    <div class="col-span-8 md:col-span-3 relative center-selector-container">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Centros de Partilha</label>
+                        <button type="button" onclick="toggleDropdown(${rowId}, event)" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm text-left flex justify-between items-center group overflow-hidden">
+                            <span id="label-centers-${rowId}" class="truncate text-slate-400">Selecionar...</span>
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="dropdown-${rowId}" class="centers-dropdown custom-scrollbar p-1 shadow-2xl">${centrosHtml}</div>
+                    </div>
+                    
+                    <div class="col-span-4 md:col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor (€)</label>
+                        <input type="number" step="0.01" oninput="updateTotal()" class="expense-valor w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-blue-600 text-right outline-none">
+                    </div>
+                    
+                    <div class="col-span-12 flex justify-between items-center bg-white/50 rounded-xl p-2 mt-2 border border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <label class="cursor-pointer bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-md">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                Tirar Foto Talão
+                                <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoCapture(${rowId}, event)">
+                            </label>
+                            <img id="photo-preview-${rowId}" src="" class="photo-preview hidden shadow-sm">
+                        </div>
+                        <button type="button" onclick="removeRow(${rowId})" class="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(row);
+        }
+
+        function toggleDropdown(id, event) {
+            event.stopPropagation();
+            const current = document.getElementById(`dropdown-${id}`);
+            const isActive = current.classList.contains('active');
+            document.querySelectorAll('.centers-dropdown').forEach(d => d.classList.remove('active'));
+            if (!isActive) current.classList.add('active');
+        }
+
+        function updateRowCenters(id) {
+            const dropdown = document.getElementById(`dropdown-${id}`);
+            const selected = Array.from(dropdown.querySelectorAll('input:checked')).map(i => i.value);
+            const label = document.getElementById(`label-centers-${id}`);
+            if (selected.length === 0) { label.innerText = "Selecionar..."; label.classList.add('text-slate-400'); }
+            else if (selected.length === centrosDisponiveis.length) { label.innerText = "Todos os Centros"; label.classList.remove('text-slate-400'); }
+            else { label.innerText = selected.length === 1 ? selected[0] : `${selected.length} Selecionados`; label.classList.remove('text-slate-400'); }
+        }
+
+        function removeRow(id) {
+            if (document.querySelectorAll('.expense-valor').length > 1) {
+                document.getElementById(`row-${id}`).remove();
+                delete expensePhotos[id];
+                updateTotal();
+            } else { showToast("Deve manter pelo menos uma despesa.", "info"); }
+        }
+
+        function updateTotal() {
+            let total = 0;
+            document.querySelectorAll('.expense-valor').forEach(input => total += parseFloat(input.value || 0));
+            document.getElementById('total-display').innerText = total.toFixed(2) + " €";
+            return total.toFixed(2);
+        }
+
+        function preparePDFData() {
+            const nome = document.getElementById('nome').value;
+            const numero = document.getElementById('numero').value;
+            const centroColaborador = document.getElementById('centro-colaborador').value;
+            const vTipo = document.getElementById('viatura-tipo').value;
+            const matricula = document.getElementById('matricula').value;
+
+            document.getElementById('pdf-nome').innerText = nome || '---';
+            document.getElementById('pdf-numero').innerText = numero || '---';
+            document.getElementById('pdf-email').innerText = document.getElementById('email').value || '---';
+            document.getElementById('pdf-centro-colaborador').innerText = centroColaborador || '---';
+            document.getElementById('pdf-gerado-em').innerText = new Date().toLocaleString('pt-PT');
+            
+            let viaturaDesc = "Nenhum / Outros";
+            if (vTipo === 'propria') viaturaDesc = `Própria (${matricula || 'N/D'})`;
+            else if (vTipo === 'aluguer') viaturaDesc = "Aluguer";
+            document.getElementById('pdf-viatura').innerText = viaturaDesc;
+
+            document.getElementById('pdf-data-preenchimento-val').innerText = formatDateBR(document.getElementById('data-preenchimento').value);
+            document.getElementById('pdf-total').innerText = updateTotal() + " €";
+
+            const tableBody = document.getElementById('pdf-table-body');
+            tableBody.innerHTML = '';
+            
+            const attachGrid = document.getElementById('pdf-attachments-grid');
+            attachGrid.innerHTML = '';
+            let hasPhotos = false;
+
+            document.querySelectorAll('#expense-list > div').forEach(row => {
+                const idMatch = row.id.match(/\d+/);
+                if(!idMatch) return;
+                const id = idMatch[0];
+                
+                const data = row.querySelector('.expense-data').value;
+                const tipo = row.querySelector('.expense-tipo').value;
+                const desc = row.querySelector('.expense-desc').value;
+                const valorRaw = row.querySelector('.expense-valor').value;
+                const checkedCenters = Array.from(row.querySelectorAll('input:checked')).map(i => i.value.split(' ')[0]);
+
+                if(valorRaw > 0 || desc || data) {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = "1px solid #f1f5f9";
+                    tr.innerHTML = `
+                        <td style="padding: 12px; font-size: 8pt; vertical-align: top;">${formatDateBR(data)}</td>
+                        <td style="padding: 12px; font-size: 8pt; vertical-align: top;"><strong>${tipo}</strong><br><span style="color:#64748b">${desc || ''}</span></td>
+                        <td style="padding: 12px; font-size: 7pt; vertical-align: top; max-width: 150px; color: #475569;">${checkedCenters.join(', ') || 'N/A'}</td>
+                        <td style="padding: 12px; font-size: 9pt; text-align: right; font-weight: 800; vertical-align: top;">${parseFloat(valorRaw || 0).toFixed(2)} €</td>
+                    `;
+                    tableBody.appendChild(tr);
+
+                    if (expensePhotos[id]) {
+                        hasPhotos = true;
+                        const div = document.createElement('div');
+                        div.style.width = "45%";
+                        div.style.marginBottom = "20px";
+                        div.style.border = '1px solid #e2e8f0';
+                        div.style.padding = '5px';
+                        div.style.borderRadius = '5px';
+                        div.innerHTML = `
+                            <img src="${expensePhotos[id]}" style="width: 100%; height: 200px; object-fit: contain; background: #f8fafc; border-radius: 4px;">
+                            <p style="font-size: 7pt; margin-top: 5px; text-align: center; color: #64748b;">${tipo} - ${formatDateBR(data)}</p>
+                        `;
+                        attachGrid.appendChild(div);
+                    }
+                }
+            });
+
+            document.getElementById('pdf-attachments-section').style.display = hasPhotos ? 'block' : 'none';
+        }
+
+        async function generatePDF() {
+            if(!validateIdentificacao()) return;
+
+            const btn = document.getElementById('btn-pdf');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<span>A preparar PDF...</span>`;
+            btn.disabled = true;
+
+            try {
+                preparePDFData();
+                const element = document.getElementById('pdf-template');
+                const opt = {
+                    margin: 0,
+                    filename: `Nota_Despesa_${document.getElementById('nome').value.replace(/\s+/g, '_')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                showToast("A gerar documento...", "info");
+                await html2pdf().set(opt).from(element).save();
+                showToast("PDF descarregado com sucesso!", "success");
+            } catch (e) {
+                showToast("Erro ao gerar PDF.", "error");
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+
+        function validateIdentificacao() {
+            const nome = document.getElementById('nome').value;
+            const centro = document.getElementById('centro-colaborador').value;
+            const email = document.getElementById('email').value;
+
+            if(!nome || !centro || !email) {
+                showToast("Preencha o Nome, Email e Centro de Custo.", "error");
+                return false;
+            }
+            return true;
+        }
+
+        async function base64ToBlob(base64Data, contentType) {
+            const parts = base64Data.split(';base64,');
+            const byteCharacters = atob(parts[1]);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, { type: contentType });
+        }
+
+        async function sendToEmail() {
+            if(!validateIdentificacao()) return;
+
+            const nome = document.getElementById('nome').value;
+            const numero = document.getElementById('numero').value;
+            const btn = document.getElementById('btn-email');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<span>A processar partilha...</span>`;
+            btn.disabled = true;
+
+            try {
+                preparePDFData();
+                const element = document.getElementById('pdf-template');
+                const opt = {
+                    margin: 0,
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                
+                const filesArray = [
+                    new File([pdfBlob], `Nota_Despesa_${nome.replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' })
+                ];
+
+                // Adicionar as fotos reais
+                for (let id in expensePhotos) {
+                    const blob = await base64ToBlob(expensePhotos[id], 'image/jpeg');
+                    filesArray.push(new File([blob], `Recibo_${id}.jpg`, { type: 'image/jpeg' }));
+                }
+
+                const shareSubject = `Nota de Despesa - ${nome} - ${numero}`;
+                const shareText = `Olá,\n\nSegue em anexo a minha nota de despesa e respetivos comprovativos.\n\nColaborador: ${nome}\nNº: ${numero}`;
+
+                // Tentar a Share API primeiro
+                if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+                    await navigator.share({
+                        files: filesArray,
+                        title: shareSubject,
+                        text: shareText
+                    });
+                    showToast("Menu de partilha aberto!", "success");
+                } else {
+                    throw new Error("Share API not supported for files");
+                }
+            } catch (err) {
+                console.log("Fallback para download + gmail manual");
+                showToast("A descarregar PDF. Por favor, anexe no Gmail.", "info");
+                
+                // Fallback manual: Faz download e abre gmail
+                await generatePDF();
+                
+                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nome} - ${numero}`)}&body=${encodeURIComponent("Anexo a nota de despesa e comprovativos descarregados.")}`;
+                window.open(gmailUrl, '_blank');
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
