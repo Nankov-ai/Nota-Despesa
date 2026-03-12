@@ -468,7 +468,7 @@
         function initSignature() {
             const canvas = document.getElementById('signature-pad');
             canvas.width = canvas.offsetWidth || 600;
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx.strokeStyle = '#1e3a8a';
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
@@ -492,12 +492,12 @@
 
         function clearSignature() {
             const canvas = document.getElementById('signature-pad');
-            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            canvas.getContext('2d', { willReadFrequently: true }).clearRect(0, 0, canvas.width, canvas.height);
         }
 
         function isSignatureEmpty() {
             const canvas = document.getElementById('signature-pad');
-            return !canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.some(v => v !== 0);
+            return !canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data.some(v => v !== 0);
         }
 
         /* ─── COMPRESSÃO DE IMAGEM ─── */
