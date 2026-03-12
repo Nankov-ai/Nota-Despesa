@@ -766,6 +766,7 @@
             const attachGrid = document.getElementById('pdf-attachments-grid');
             attachGrid.innerHTML = '';
             let hasPhotos = false;
+            let isFirstImage = true;
 
             document.querySelectorAll('#expense-list > div').forEach(row => {
                 const idMatch = row.id.match(/\d+/);
@@ -793,7 +794,8 @@
                         hasPhotos = true;
                         const div = document.createElement('div');
                         if (photo.type === 'image') {
-                            div.style.cssText = 'width:100%;page-break-before:always;text-align:center;padding:20px 0;';
+                            div.style.cssText = `width:100%;text-align:center;padding:20px 0;${isFirstImage ? '' : 'page-break-before:always;'}`;
+                            isFirstImage = false;
                             div.innerHTML = `
                                 <p style="font-size:8pt;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:12px;">${tipo} — ${formatDateBR(data)}</p>
                                 <img src="${photo.data}" style="max-width:100%;max-height:240mm;object-fit:contain;display:block;margin:0 auto;border-radius:4px;">
@@ -813,13 +815,13 @@
             return { docId, nome, numero, centroColaborador, total: updateTotal() };
         }
 
-        /* ─── GERAR PDF ─── */
         async function createFinalPDFBlob(element) {
             const opt = {
                 margin: 0,
                 image: { type: 'jpeg', quality: 0.95 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             const notaBlob = await html2pdf().set(opt).from(element).output('blob');
@@ -970,12 +972,12 @@ Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
 
                     await new Promise(r => setTimeout(r, 600));
                     
-                    // Em vez de popup, transforma o botão para o utilizador clicar manualmente
-                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" onclick="showToast('A abrir o teu Gmail. Já fiz o download da tua despesa em pdf, anexa ao email sff!', 'info'); setTimeout(()=>location.reload(), 3000)" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
+                    // Em vez de popup, transforma o botão para o utilizador clicar manualmente de forma nativa e sem onclick javascript complexos.
+                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        <span>Abrir Gmail (Anexar Ficheiros)</span>
+                        <span>Abrir Gmail (Anexar PDF)</span>
                     </a>`;
-                    showToast('Ficheiros descarregados. Clique no botão azul para abrir o Gmail.', 'success');
+                    showToast('PDF único descarregado. Clique no botão azul para abrir o Gmail.', 'success');
                     
                     // Previne a execução do `finally` normal para manter o botão azul
                     saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
