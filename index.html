@@ -12,10 +12,10 @@
         @media print { .no-print { display: none; } }
 
         #pdf-template {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 20mm;
-            margin: 0 auto;
+            width: 794px;
+            min-height: 1123px;
+            padding: 60px;
+            margin: 0;
             background: white;
             color: black;
             box-sizing: border-box;
@@ -58,10 +58,11 @@
 
         #pdf-container {
             position: absolute;
-            top: -10000px;
-            left: 0;
-            width: 210mm;
+            top: 0;
+            left: -9999px;
+            width: 794px;
             background: white;
+            overflow: hidden;
         }
 
         input:focus, select:focus, textarea:focus {
@@ -822,10 +823,6 @@
             btn.innerHTML = '<span>A preparar PDF...</span>';
             btn.disabled = true;
 
-            const container = document.getElementById('pdf-container');
-            container.style.top = '0';
-            await new Promise(r => setTimeout(r, 80));
-
             try {
                 const { docId, nome, numero, centroColaborador, total } = preparePDFData();
                 const element = document.getElementById('pdf-template');
@@ -833,7 +830,7 @@
                     margin: 0,
                     filename: `Nota_Despesa_${docId}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 },
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
@@ -844,7 +841,6 @@
             } catch(e) {
                 showToast('Erro ao gerar PDF.', 'error');
             } finally {
-                container.style.top = '-10000px';
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
@@ -905,16 +901,12 @@
             btn.innerHTML = '<span>A processar...</span>';
             btn.disabled = true;
 
-            const container = document.getElementById('pdf-container');
-            container.style.top = '0';
-            await new Promise(r => setTimeout(r, 80));
-
             try {
                 const { docId, nome, numero } = preparePDFData();
                 const element = document.getElementById('pdf-template');
                 const opt = {
                     margin: 0,
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 },
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
@@ -940,7 +932,6 @@
                 const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nome} - ${numero}`)}&body=${encodeURIComponent('Anexo a nota de despesa descarregada.')}`;
                 window.open(gmailUrl, '_blank');
             } finally {
-                container.style.top = '-10000px';
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
