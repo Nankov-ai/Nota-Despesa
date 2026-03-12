@@ -320,6 +320,7 @@
     <script>
         let rowCount = 0;
         const expensePhotos = {};
+        let signatureDrawn = false;
 
         const centrosDisponiveis = [
             "600 - Sede","601 - V. N. Gaia","602 - Alfragide","603 - Montijo",
@@ -482,22 +483,22 @@
             };
 
             canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-            canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+            canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); signatureDrawn = true; });
             canvas.addEventListener('mouseup', () => drawing = false);
             canvas.addEventListener('mouseleave', () => drawing = false);
             canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
-            canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
+            canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); signatureDrawn = true; }, { passive: false });
             canvas.addEventListener('touchend', () => drawing = false);
         }
 
         function clearSignature() {
             const canvas = document.getElementById('signature-pad');
             canvas.getContext('2d', { willReadFrequently: true }).clearRect(0, 0, canvas.width, canvas.height);
+            signatureDrawn = false;
         }
 
         function isSignatureEmpty() {
-            const canvas = document.getElementById('signature-pad');
-            return !canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data.some(v => v !== 0);
+            return !signatureDrawn;
         }
 
         /* ─── COMPRESSÃO DE IMAGEM ─── */
