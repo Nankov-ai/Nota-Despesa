@@ -220,9 +220,9 @@
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Descarregar PDF
                 </button>
-                <a href="https://mail.google.com/mail/?view=cm&fs=1" target="_blank" onclick="const n = document.getElementById('nome').value || 'Colaborador'; const m = document.getElementById('numero').value || ''; this.href = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent('Nota de Despesa - ' + n + ' - ' + m)}&body=Olá,%0A%0ASegue em anexo a Nota de Despesa e respetivos comprovativos.%0A%0AColaborador: ${encodeURIComponent(n)} | Nº: ${encodeURIComponent(m)}`;" id="btn-email" class="bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
+                <a href="https://mail.google.com/mail/?view=cm&fs=1" target="_blank" onclick="return handleEmailClick(event)" id="btn-email" class="bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    ABRIR GMAIL
+                    Partilhar / Email
                 </a>
                 <button type="button" onclick="exportCSV()" id="btn-csv" class="bg-green-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-green-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-green-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -923,6 +923,50 @@
             a.click();
             URL.revokeObjectURL(url);
             showToast('CSV exportado com sucesso!', 'success');
+        }
+
+        /* ─── PARTILHAR / EMAIL ─── */
+        async function handleEmailClick(event) {
+            const isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+            const nomeVal = document.getElementById('nome').value || 'Colaborador';
+            const numeroVal = document.getElementById('numero').value || '';
+            
+            event.currentTarget.href = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent('Nota de Despesa - ' + nomeVal + ' - ' + numeroVal)}&body=Olá,%0A%0ASegue em anexo a Nota de Despesa e respetivos comprovativos.%0A%0AColaborador: ${encodeURIComponent(nomeVal)} | Nº: ${encodeURIComponent(numeroVal)}`;
+
+            if (isMob && navigator.canShare) {
+                event.preventDefault(); // Impede o link Web nativo no Mobile
+                if (!validateForm()) return false;
+
+                const btn = document.getElementById('btn-email');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<span class="text-xs">A preparar anexo...</span>';
+                
+                try {
+                    const { docId, centroColaborador, total } = preparePDFData();
+                    const element = document.getElementById('pdf-template');
+                    const finalBlob = await createFinalPDFBlob(element);
+                    const filesArray = [new File([finalBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })];
+                    
+                    if (navigator.canShare({ files: filesArray })) {
+                        await navigator.share({ files: filesArray, title: `Nota de Despesa - ${nomeVal}`, text: `Nota de ${nomeVal} (${numeroVal}) — Ref: ${docId}` });
+                        showToast('Partilhado com sucesso!', 'success');
+                        saveToHistory(docId, nomeVal, numeroVal, centroColaborador, total);
+                    }
+                } catch(err) {
+                    showToast('Erro ao partilhar. Tente o botão Descarregar.', 'error');
+                } finally {
+                    btn.innerHTML = originalHTML;
+                }
+                return false;
+            } else {
+                // PC: Link do Gmail avança normalmente e forçamos o download assíncrono paralelo
+                if (!validateForm()) {
+                    event.preventDefault();
+                    return false;
+                }
+                setTimeout(() => generatePDF(), 500);
+                return true;
+            }
         }
 
         /* ─── UTILITÁRIOS ─── */
