@@ -592,13 +592,12 @@
                     </div>
                     <div class="col-span-6 md:col-span-2">
                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo</label>
-                        <select class="expense-tipo w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none cursor-pointer" onchange="toggleKmInput(${rowId}, this.value)">
+                        <select class="expense-tipo w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none cursor-pointer">
                             <option>Portagens</option>
                             <option>Refeição</option>
                             <option>Combustível</option>
                             <option>Alojamento</option>
                             <option>Transporte</option>
-                            <option>Km Próprios</option>
                             <option>Outros</option>
                         </select>
                     </div>
@@ -636,13 +635,6 @@
                             </button>
                         </div>
 
-                        <!-- Calculadora Km Próprios -->
-                        <div id="km-group-${rowId}" class="hidden flex items-center gap-2">
-                            <label class="text-[10px] font-black text-slate-400 uppercase">Km:</label>
-                            <input type="number" step="1" min="0" id="km-input-${rowId}" oninput="calcKmValue(${rowId})" class="w-20 p-2 bg-slate-50 border border-blue-200 rounded-xl text-sm outline-none text-center font-bold" placeholder="0">
-                            <span class="text-[10px] text-slate-400">× 0,40 €/km</span>
-                        </div>
-
                         <button type="button" onclick="removeRow(${rowId})" class="p-2 text-slate-300 hover:text-red-500 transition-colors ml-auto">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
@@ -650,29 +642,6 @@
                 </div>
             `;
             list.appendChild(row);
-        }
-
-        /* ─── KM PRÓPRIOS ─── */
-        function toggleKmInput(rowId, tipo) {
-            const kmGroup = document.getElementById(`km-group-${rowId}`);
-            const valorInput = document.getElementById(`valor-${rowId}`);
-            if (tipo === 'Km Próprios') {
-                kmGroup.classList.remove('hidden');
-                valorInput.readOnly = true;
-                valorInput.classList.add('bg-slate-100', 'text-slate-500');
-                calcKmValue(rowId);
-            } else {
-                kmGroup.classList.add('hidden');
-                valorInput.readOnly = false;
-                valorInput.classList.remove('bg-slate-100', 'text-slate-500');
-            }
-        }
-
-        function calcKmValue(rowId) {
-            const km = parseFloat(document.getElementById(`km-input-${rowId}`).value) || 0;
-            const valorInput = document.getElementById(`valor-${rowId}`);
-            valorInput.value = (km * 0.40).toFixed(2);
-            updateTotal();
         }
 
         /* ─── CENTROS ─── */
@@ -730,14 +699,13 @@
                 const idMatch = row.id.match(/\d+/);
                 if (!idMatch) return;
                 const id = idMatch[0];
-                const tipo = row.querySelector('.expense-tipo').value;
                 const valor = parseFloat(row.querySelector('.expense-valor').value || 0);
-                if (valor > 0 && tipo !== 'Km Próprios' && !expensePhotos[id]) {
+                if (valor > 0 && !expensePhotos[id]) {
                     missingComprovativo = true;
                 }
             });
             if (missingComprovativo) {
-                showToast('Todas as despesas (exceto Km Próprios) precisam de comprovativo.', 'error');
+                showToast('Todas as despesas precisam de comprovativo.', 'error');
                 return false;
             }
 
@@ -794,15 +762,13 @@
                 const desc = row.querySelector('.expense-desc').value;
                 const valorRaw = row.querySelector('.expense-valor').value;
                 const checkedCenters = Array.from(row.querySelectorAll('input:checked')).map(i => i.value.split(' ')[0]);
-                const kmInput = document.getElementById(`km-input-${id}`);
-                const kmDesc = tipo === 'Km Próprios' && kmInput ? ` (${kmInput.value || 0} km × 0,40€)` : '';
 
                 if (valorRaw > 0 || desc || data) {
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = '1px solid #f1f5f9';
                     tr.innerHTML = `
                         <td style="padding:10px;font-size:8pt;vertical-align:top;">${formatDateBR(data)}</td>
-                        <td style="padding:10px;font-size:8pt;vertical-align:top;"><strong>${tipo}</strong>${kmDesc}<br><span style="color:#64748b">${desc || ''}</span></td>
+                        <td style="padding:10px;font-size:8pt;vertical-align:top;"><strong>${tipo}</strong><br><span style="color:#64748b">${desc || ''}</span></td>
                         <td style="padding:10px;font-size:7pt;vertical-align:top;max-width:120px;color:#475569;">${checkedCenters.join(', ') || 'N/A'}</td>
                         <td style="padding:10px;font-size:9pt;text-align:right;font-weight:800;vertical-align:top;">${parseFloat(valorRaw || 0).toFixed(2)} €</td>
                     `;
