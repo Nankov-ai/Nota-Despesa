@@ -954,7 +954,17 @@
                     html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
-                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nomeVal} - ${numeroVal}`)}&body=${encodeURIComponent(`Olá,\n\nSegue em anexo a Nota de Despesa e respetivos comprovativos.\n\nColaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
+                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nomeVal} - ${numeroVal}`)}&body=${encodeURIComponent(`Olá,
+
+Segue em anexo a Nota de Despesa e respetivos comprovativos.
+
+Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
+
+                // Abrir janela ANTES dos awaits para evitar bloqueio de popup
+                let gmailWindow = null;
+                if (!isMobile()) {
+                    gmailWindow = window.open('about:blank', '_blank');
+                }
 
                 if (isMobile() && navigator.canShare) {
                     // MOBILE: Share API com todos os ficheiros
@@ -990,7 +1000,12 @@
                     }
 
                     await new Promise(r => setTimeout(r, 600));
-                    window.open(gmailUrl, '_blank');
+                    if (gmailWindow) {
+                        gmailWindow.location.href = gmailUrl;
+                    } else {
+                        // Fallback se popup foi bloqueado mesmo assim
+                        showToast('Bloqueado pelo browser. Abre o Gmail manualmente.', 'error');
+                    }
                     showToast('Gmail aberto — anexe os ficheiros descarregados.', 'success');
                 }
 
