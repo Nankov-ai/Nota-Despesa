@@ -220,10 +220,10 @@
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Descarregar PDF
                 </button>
-                <button type="button" onclick="sendToEmail()" id="btn-email" class="bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
+                <a href="https://mail.google.com/mail/?view=cm&fs=1" target="_blank" onclick="const n = document.getElementById('nome').value || 'Colaborador'; const m = document.getElementById('numero').value || ''; this.href = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent('Nota de Despesa - ' + n + ' - ' + m)}&body=${encodeURIComponent('Olá,\\n\\nSegue em anexo a Nota de Despesa e respetivos comprovativos.\\n\\nColaborador: ' + n + ' | Nº: ' + m)}`;" id="btn-email" class="bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    Partilhar / Email
-                </button>
+                    ABRIR GMAIL
+                </a>
                 <button type="button" onclick="exportCSV()" id="btn-csv" class="bg-green-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-green-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-green-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Exportar CSV
@@ -923,78 +923,6 @@
             a.click();
             URL.revokeObjectURL(url);
             showToast('CSV exportado com sucesso!', 'success');
-        }
-
-        /* ─── PARTILHAR / EMAIL ─── */
-        function isMobile() {
-            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-        }
-
-        async function sendToEmail() {
-            if (!validateForm()) return;
-
-            const btn = document.getElementById('btn-email');
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<span>A processar...</span>';
-            btn.disabled = true;
-
-            const nomeVal = document.getElementById('nome').value;
-            const numeroVal = document.getElementById('numero').value;
-
-            try {
-                const { docId } = preparePDFData();
-                const element = document.getElementById('pdf-template');
-                const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(`Nota de Despesa - ${nomeVal} - ${numeroVal}`)}&body=${encodeURIComponent(`Olá,
-
-Segue em anexo a Nota de Despesa e respetivos comprovativos.
-
-Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
-
-                showToast('A preparar anexo unificado...', 'info');
-                const finalBlob = await createFinalPDFBlob(element);
-
-                if (isMobile() && navigator.canShare) {
-                    // MOBILE: Share API partilha apenas o PDF final único
-                    const filesArray = [new File([finalBlob], `Nota_Despesa_${docId}.pdf`, { type: 'application/pdf' })];
-                    
-                    if (navigator.canShare({ files: filesArray })) {
-                        await navigator.share({ files: filesArray, title: `Nota de Despesa - ${nomeVal}`, text: `Nota de ${nomeVal} (${numeroVal}) — Ref: ${docId}` });
-                        showToast('Partilhado com sucesso!', 'success');
-                    } else {
-                        throw new Error('canShare false');
-                    }
-                } else {
-                    // DESKTOP: Descarrega apenas o PDF final único e converte botão
-                    const url = URL.createObjectURL(finalBlob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = `Nota_Despesa_${docId}.pdf`; a.click();
-                    URL.revokeObjectURL(url);
-
-                    await new Promise(r => setTimeout(r, 600));
-                    
-                    // Em vez de popup, transforma o botão para o utilizador clicar manualmente de forma nativa e sem onclick javascript complexos.
-                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        <span>Abrir Gmail (Anexar PDF)</span>
-                    </a>`;
-                    showToast('PDF único descarregado. Clique no botão azul para abrir o Gmail.', 'success');
-                    
-                    // Previne a execução do `finally` normal para manter o botão azul
-                    saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
-                    return; 
-                }
-
-                saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
-
-            } catch(err) {
-                showToast('Erro ao partilhar. Tente descarregar o PDF.', 'error');
-            } finally {
-                // Só restaura o botão se não for desktop (mobile)
-                if (btn && btn.parentNode) {
-                    btn.innerHTML = originalHTML;
-                    btn.disabled = false;
-                }
-            }
         }
 
         /* ─── UTILITÁRIOS ─── */
