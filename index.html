@@ -6,6 +6,7 @@
     <title>Portal de Notas de Despesa - Norauto</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -792,20 +793,15 @@
                     if (photo) {
                         hasPhotos = true;
                         const div = document.createElement('div');
-                        div.style.cssText = 'width:45%;margin-bottom:16px;border:1px solid #e2e8f0;padding:5px;border-radius:5px;';
                         if (photo.type === 'image') {
+                            div.style.cssText = 'width:100%;page-break-before:always;text-align:center;padding:20px 0;';
                             div.innerHTML = `
-                                <img src="${photo.data}" style="width:100%;height:180px;object-fit:contain;background:#f8fafc;border-radius:4px;">
-                                <p style="font-size:7pt;margin-top:4px;text-align:center;color:#64748b;">${tipo} — ${formatDateBR(data)}</p>
+                                <p style="font-size:8pt;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:12px;">${tipo} — ${formatDateBR(data)}</p>
+                                <img src="${photo.data}" style="max-width:100%;max-height:240mm;object-fit:contain;display:block;margin:0 auto;border-radius:4px;">
                             `;
                         } else {
-                            div.innerHTML = `
-                                <div style="width:100%;height:60px;background:#fef2f2;border-radius:4px;display:flex;align-items:center;justify-content:center;border:1px solid #fca5a5;">
-                                    <span style="font-size:9pt;color:#dc2626;font-weight:800;">PDF ANEXADO</span>
-                                </div>
-                                <p style="font-size:7pt;margin-top:4px;text-align:center;color:#64748b;">${photo.name}</p>
-                                <p style="font-size:7pt;text-align:center;color:#64748b;">${tipo} — ${formatDateBR(data)}</p>
-                            `;
+                            div.style.cssText = 'width:100%;margin-bottom:8px;padding:10px;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;';
+                            div.innerHTML = `<p style="font-size:8pt;color:#64748b;"><strong>📎 PDF anexado:</strong> ${photo.name} &nbsp;·&nbsp; ${tipo} — ${formatDateBR(data)}<br><span style="font-size:7pt;color:#94a3b8;">(incluído nas páginas seguintes)</span></p>`;
                         }
                         attachGrid.appendChild(div);
                     }
@@ -830,14 +826,54 @@
                 const element = document.getElementById('pdf-template');
                 const opt = {
                     margin: 0,
-                    filename: `Nota_Despesa_${docId}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
                     html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794, x: 0, y: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
                 showToast('A gerar documento...', 'info');
-                await html2pdf().set(opt).from(element).save();
+
+                // 1. Gerar a nota de despesa como blob
+                const notaBlob = await html2pdf().set(opt).from(element).output('blob');
+
+                // 2. Verificar se há PDFs comprovativo para fundir
+                const pdfComprovativos = Object.values(expensePhotos).filter(p => p.type === 'pdf' && p.data);
+
+                let finalBytes;
+                if (pdfComprovativos.length > 0 && typeof PDFLib !== 'undefined') {
+                    // Fundir com pdf-lib
+                    const notaArrayBuffer = await notaBlob.arrayBuffer();
+                    const mergedDoc = await PDFLib.PDFDocument.load(notaArrayBuffer);
+
+                    for (const comprov of pdfComprovativos) {
+                        try {
+                            const base64Data = comprov.data.split(',')[1];
+                            const comprovBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                            const comprovDoc = await PDFLib.PDFDocument.load(comprovBytes);
+                            const pageIndices = comprovDoc.getPageIndices();
+                            const copiedPages = await mergedDoc.copyPages(comprovDoc, pageIndices);
+                            copiedPages.forEach(page => mergedDoc.addPage(page));
+                        } catch(e) { /* ignorar PDF inválido */ }
+                    }
+
+                    finalBytes = await mergedDoc.save();
+                    const finalBlob = new Blob([finalBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(finalBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Nota_Despesa_${docId}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    // Sem PDFs — descarregar diretamente
+                    const url = URL.createObjectURL(notaBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Nota_Despesa_${docId}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+
                 saveToHistory(docId, nome, numero, centroColaborador, total);
                 showToast('PDF descarregado com sucesso!', 'success');
             } catch(e) {
