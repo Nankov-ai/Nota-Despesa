@@ -285,6 +285,13 @@
             </div>
 
             <!-- Botões de Ação -->
+            <!-- Botões de Ação -->
+            <div id="confirm-container" class="hidden mb-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
+                <input type="checkbox" id="check-anexo" onchange="checkGmailConsent()" class="w-5 h-5 accent-blue-600 cursor-pointer">
+                <label for="check-anexo" class="text-xs font-bold text-blue-800 cursor-pointer">
+                    Confirmo que vou anexar manualmente o PDF descarregado ao email que vai abrir.
+                </label>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print pb-6">
                 <button type="button" onclick="generatePDF()" id="btn-pdf"
                     class="bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-3 shadow-xl">
@@ -296,9 +303,9 @@
                     Descarregar PDF
                 </button>
                 <a href="https://mail.google.com/mail/?view=cm&fs=1"
-                    onclick="alert('⚠️ AVISO IMPORTANTE: O teu Email (Gmail/Outlook) vai ser aberto agora. NÃO TE ESQUEÇAS DE ANEXAR LÁ DENTRO o ficheiro PDF da Nota de Despesa que acabaste de descarregar!'); const n = document.getElementById('nome').value || 'Colaborador'; const m = document.getElementById('numero').value || ''; const sub = encodeURIComponent('Nota de Despesa - ' + n + ' - ' + m); const bd = encodeURIComponent('Olá,') + '%0D%0A%0D%0A' + encodeURIComponent('Segue em anexo a Nota de Despesa e respetivos comprovativos.') + '%0D%0A%0D%0A' + encodeURIComponent('Colaborador: ' + n + ' | Nº: ' + m); if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){ this.target='_self'; this.href='mailto:?subject='+sub+'&body='+bd; } else { this.target='_blank'; this.href='https://mail.google.com/mail/?view=cm&fs=1&su='+sub+'&body='+bd; }"
+                    onclick="const n = document.getElementById('nome').value || 'Colaborador'; const m = document.getElementById('numero').value || ''; const sub = encodeURIComponent('Nota de Despesa - ' + n + ' - ' + m); const bd = encodeURIComponent('Olá,') + '%0D%0A%0D%0A' + encodeURIComponent('Segue em anexo a Nota de Despesa e respetivos comprovativos.') + '%0D%0A%0D%0A' + encodeURIComponent('Colaborador: ' + n + ' | Nº: ' + m); if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){ this.target='_self'; this.href='mailto:?subject='+sub+'&body='+bd; } else { this.target='_blank'; this.href='https://mail.google.com/mail/?view=cm&fs=1&su='+sub+'&body='+bd; }"
                     id="btn-email"
-                    class="hidden bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100">
+                    class="hidden opacity-50 pointer-events-none bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
@@ -986,13 +993,24 @@
                 saveToHistory(docId, nome, numero, centroColaborador, total);
                 showToast('PDF descarregado com sucesso!', 'success');
                 
-                // Mostrar o botão de enviar email (Gmail) depois de gerar PDF
+                // Mostrar o botão de enviar email (Gmail) e a checkbox de confirmação
                 document.getElementById('btn-email').classList.remove('hidden');
+                document.getElementById('confirm-container').classList.remove('hidden');
             } catch (e) {
                 showToast('Erro ao gerar PDF.', 'error');
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+            }
+        }
+
+        function checkGmailConsent() {
+            const isChecked = document.getElementById('check-anexo').checked;
+            const btn = document.getElementById('btn-email');
+            if (isChecked) {
+                btn.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                btn.classList.add('opacity-50', 'pointer-events-none');
             }
         }
 
