@@ -57,11 +57,12 @@
         }
 
         #pdf-container {
-            position: absolute;
+            position: fixed;
             top: -10000px;
             left: 0;
             width: 210mm;
             background: white;
+            z-index: -9999;
         }
 
         input:focus, select:focus, textarea:focus {
@@ -829,7 +830,7 @@
                     margin: 0,
                     filename: `Nota_Despesa_${docId}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
@@ -905,7 +906,7 @@
                 const element = document.getElementById('pdf-template');
                 const opt = {
                     margin: 0,
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
+                    html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
