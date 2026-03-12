@@ -960,12 +960,6 @@ Segue em anexo a Nota de Despesa e respetivos comprovativos.
 
 Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
 
-                // Abrir janela ANTES dos awaits para evitar bloqueio de popup
-                let gmailWindow = null;
-                if (!isMobile()) {
-                    gmailWindow = window.open('about:blank', '_blank');
-                }
-
                 if (isMobile() && navigator.canShare) {
                     // MOBILE: Share API com todos os ficheiros
                     const pdfBlob = await html2pdf().set(pdfOpt).from(element).output('blob');
@@ -1000,13 +994,17 @@ Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
                     }
 
                     await new Promise(r => setTimeout(r, 600));
-                    if (gmailWindow) {
-                        gmailWindow.location.href = gmailUrl;
-                    } else {
-                        // Fallback se popup foi bloqueado mesmo assim
-                        showToast('Bloqueado pelo browser. Abre o Gmail manualmente.', 'error');
-                    }
-                    showToast('Gmail aberto — anexe os ficheiros descarregados.', 'success');
+                    
+                    // Em vez de popup, transforma o botão para o utilizador clicar manualmente
+                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" onclick="setTimeout(()=>location.reload(), 2000)" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <span>Abrir Gmail (Anexar Ficheiros)</span>
+                    </a>`;
+                    showToast('Ficheiros descarregados. Clique no botão azul para abrir o Gmail.', 'success');
+                    
+                    // Previne a execução do `finally` normal para manter o botão azul
+                    saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
+                    return; 
                 }
 
                 saveToHistory(docId, nomeVal, numeroVal, document.getElementById('centro-colaborador').value, updateTotal());
@@ -1014,8 +1012,11 @@ Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
             } catch(err) {
                 showToast('Erro ao partilhar. Tente descarregar o PDF.', 'error');
             } finally {
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
+                // Só restaura o botão se não for desktop (mobile)
+                if (btn && btn.parentNode) {
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }
             }
         }
 
