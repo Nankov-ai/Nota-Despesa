@@ -996,7 +996,7 @@ Colaborador: ${nomeVal} | Nº: ${numeroVal} | Ref: ${docId}`)}`;
                     await new Promise(r => setTimeout(r, 600));
                     
                     // Em vez de popup, transforma o botão para o utilizador clicar manualmente
-                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" onclick="setTimeout(()=>location.reload(), 2000)" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
+                    btn.outerHTML = `<a href="${gmailUrl}" target="_blank" onclick="showToast('A abrir o teu Gmail. Já fiz o download da tua despesa em pdf, anexa ao email sff!', 'info'); setTimeout(()=>location.reload(), 3000)" class="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide text-white transition-all shadow-md bg-blue-600 hover:bg-blue-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         <span>Abrir Gmail (Anexar Ficheiros)</span>
                     </a>`;
