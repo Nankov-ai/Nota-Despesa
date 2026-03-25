@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Notas de Despesa</title>
+    <title>Portal de Notas de Despesa - Norauto</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -142,8 +142,8 @@
         <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
                 <div class="logo-container">
-                    <img src="" alt="Logótipo" onerror="this.src='https://placehold.co/180x50?text=EMPRESA'" style="display:none" id="header-logo">
-                    <span id="header-logo-text" style="font-size:1.5rem;font-weight:800;letter-spacing:0.05em;color:#1e293b;">EMPRESA</span>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Logo_actuel_de_Norauto.png"
+                        alt="Logótipo Norauto" onerror="this.src='https://placehold.co/180x50?text=NORAUTO'">
                 </div>
                 <div class="h-10 w-px bg-slate-200 hidden md:block"></div>
                 <div>
@@ -155,7 +155,7 @@
             <div class="flex items-center gap-3">
                 <div
                     class="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">
-                    Colaborador
+                    Colaborador Norauto
                 </div>
                 <button type="button" onclick="clearDraft()"
                     class="text-xs text-slate-400 hover:text-red-500 transition-colors px-3 py-2 rounded-xl hover:bg-red-50"
@@ -184,7 +184,7 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">E-mail
                             Corporativo *</label>
-                        <input type="email" id="email" required placeholder="exemplo@empresa.pt" oninput="saveDraft()"
+                        <input type="email" id="email" required placeholder="exemplo@norauto.pt" oninput="saveDraft()"
                             class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all">
                     </div>
                     <div>
@@ -350,7 +350,8 @@
             <div
                 style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;border-bottom:2px solid #000;padding-bottom:16px;">
                 <div>
-                    <div style="font-size:18pt;font-weight:800;letter-spacing:0.05em;color:#1e293b;margin-bottom:8px;">EMPRESA</div>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Logo_actuel_de_Norauto.png"
+                        style="width:160px;height:auto;margin-bottom:8px;">
                     <h1 style="font-size:18pt;font-weight:800;margin:0;color:#000;text-transform:uppercase;">Relatório
                         de Notas de Despesa</h1>
                 </div>
@@ -426,7 +427,7 @@
 
             <div
                 style="margin-top:24px;font-size:7pt;color:#94a3b8;text-align:center;border-top:1px dashed #cbd5e1;padding-top:8px;">
-                Portal de Notas de Despesa — Gerado em <span id="pdf-gerado-em"></span>
+                Documento Norauto Portugal — Processamento de Despesas. Gerado em <span id="pdf-gerado-em"></span>
             </div>
         </div>
     </div>
@@ -437,10 +438,14 @@
         let signatureDrawn = false;
 
         const centrosDisponiveis = [
-            "001 - Sede", "002 - Loja 1", "003 - Loja 2", "004 - Loja 3",
-            "005 - Loja 4", "006 - Loja 5", "007 - Loja 6", "008 - Loja 7",
-            "009 - Loja 8", "010 - Loja 9", "011 - Loja 10", "012 - Armazém",
-            "013 - Escritório Norte", "014 - Escritório Sul", "015 - Serviços Centrais"
+            "600 - Sede", "601 - V. N. Gaia", "602 - Alfragide", "603 - Montijo",
+            "604 - Rio Tinto", "605 - Aveiro", "606 - Almada", "607 - Coimbra",
+            "608 - Braga", "609 - T. Novas", "610 - Setúbal", "611 - Sintra",
+            "612 - Maia", "613 - Matosinhos", "614 - Guia", "615 - Barreiro",
+            "616 - Guimarães", "617 - Odivelas", "618 - Cascais", "619 - T. Vedras",
+            "620 - Portimão", "621 - Leiria", "624 - Alverca", "625 - Amadora",
+            "626 - Sacavém", "627 - Évora", "629 - Viana do Castelo", "630 - Faro",
+            "631 - Carcavelos", "632 - Figueira da Foz", "633 - Porto Ramalde"
         ];
 
         /* ─── INIT ─── */
