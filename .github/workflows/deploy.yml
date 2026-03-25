@@ -12,9 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare deploy folder
+        run: |
+          mkdir -p deploy
+          cp nota_despesa.html deploy/index.html
       - uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: .
+          folder: deploy
           branch: gh-pages
-          clean-exclude: |
-            .nojekyll
