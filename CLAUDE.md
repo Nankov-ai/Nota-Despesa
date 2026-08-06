@@ -5,8 +5,14 @@ Aplicação single-file (`index.html`) para submissão de notas de despesa de co
 ## Deploy
 
 - Repositório: https://github.com/Nankov-ai/Nota-Despesa
-- Push para `main` dispara `.github/workflows/deploy.yml`, que publica `index.html` (pasta raiz) na branch `gh-pages` via GitHub Pages.
+- Site público: https://nodeflow.pt/Nota-Despesa/ (domínio próprio apontado ao GitHub Pages).
+- Origem do Pages = **GitHub Actions** (`build_type: workflow`, configurado via API a 2026-08-06 — Settings → Pages → Source → "GitHub Actions"). Não voltar a mudar para "Deploy from a branch": esse modo legado ficou com o build encravado em `"building"` indefinidamente (nunca progrediu, `duration: 0`) e o site inteiro passou a `"errored"`; forçar rebuild via API (`POST /pages/builds`) não resolveu — só a troca de `build_type` desbloqueou.
+- Push para `main` publica automaticamente via `.github/workflows/deploy.yml` (`actions/configure-pages` + `actions/upload-pages-artifact` + `actions/deploy-pages`).
 - Não renomear `index.html` — é o ponto de entrada do Pages.
+- Para confirmar que o deploy realmente chegou ao ar (o cache do browser engana), verificar o HTML servido diretamente, não confiar só no estado do workflow:
+  ```
+  curl -s "https://nodeflow.pt/Nota-Despesa/?_=$(date +%s)" | grep 'data-i18n='
+  ```
 
 ## Idiomas (PT/FR)
 
